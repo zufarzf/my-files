@@ -1,0 +1,55 @@
+Для начала проиницилизируем git репозиторий:
+	git init
+
+Чтобы узнать что творится в git вводим:
+	git status
+
+Чтобы добавить изменения используем:
+	git add <filename>
+
+Чтобы зафиксировать изменения используем:
+	git commit -m "коментарий"
+	!!! <-m> от message
+
+Чтобы игнорировать гитом некоторые файлы нужно их перечислить в файле:
+	.gitignore
+
+Чтобы узнать в какой ветке находится git вводим:
+	git branch
+
+Чтобы создать новую ветку:
+	git branch <branch_name>
+
+Чтобы удалить ветку:
+	git branch -D <branch_name>
+
+Чтобы переключиться с ветки на ветку:
+	git checkout <branch_name>
+
+Создать и перейти на новую ветку:
+	git checkout -b <branch_name>
+
+Чтобы совместить ветки:
+	git merge <branch_name>
+
+Добавляем username:
+	git config --global user.name "new_name"
+
+Добавляем email:
+	git config --global user.email new_email
+
+Привязка к удалённому репозиторию:
+	git remote add origin https://github.com/zufarzf/zufar-gittest.git
+
+Чтобы залить что у нас в локале на удалённый сервер:
+	git push -U origin <branch_name>
+
+
+После подключение к серверу можно писать просто:
+	git push
+
+Чтобы склонировать проект в свой репозиторий пишем:
+	git clone <URL>
+
+Перед открытием локального проекта чтобы забрать все последние изменения вводим:
+	git pull

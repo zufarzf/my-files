@@ -1,0 +1,277 @@
+Инструкция по поднятию сервера и deploy приложения
+----------------------------------------------------------------------------------------------------------
+
+
+sudo useradd -m <user_name>            создаём пользователя помимо root
+sudo passwd <user_name>                ставим пароль
+usermod -a -G sudo <user_name>         добавляем пользователя в группу sudo
+
+----------------------------------------------------------------------------------------------------------
+
+После выходим из root и коннектимся как <user_name>
+
+создаём SSH ключи на терминале:
+	ssh-keygen
+
+Потом можно несколько раз нажать на Enter.
+
+Что бы посмотреть на ключи ssh:
+	На Linux:
+		cat ~/.ssh/id_rsa		Закрытый ключ
+		cat ~/.ssh/id_rsa.pub	Открытый ключ
+
+	На Windows:
+		cat C:\Users\<user_name>\.ssh\id_rsa		Закрытый ключ
+		cat C:\Users\<user_name>\.ssh\id_rsa.pub		Открытый ключ
+
+
+После ставим открытый ключ (id_rsa.pub) на сервер в authorized_keys
+В директиве ~/ создаём директорию .ssh:
+	mkdir ~/.ssh
+
+В ней создаём authorized_keys и записыаем открытый ключ.
+Название обязательно должно быть authorized_keys!:
+	sudo nano ~/.ssh/authorized_keys
+
+Сохроняем и выходим. (ctrl+X после y, enter)
+Теперь он должен логиниться без пароля, если не так то вы упустили где-то ошибку.
+
+----------------------------------------------------------------------------------------------------------
+
+обновляем репозиторий на нашем сервере
+	sudo apt-get update
+
+Устанавливаем утилиты
+	sudo apt-get install -y vim mosh tmux htop git 
+					curl wget unzip zip gcc 
+					build-essential make
+
+----------------------------------------------------------------------------------------------------------
+
+Если что можно отключить логирование по паролю для root в SSH настройках:
+	sudo vim /etc/ssh/sshd_config
+		AllowUsers www
+		PermitRootLogin no
+		PasswordAuthentication no
+
+	sudo service ssh restart
+----------------------------------------------------------------------------------------------------------
+
+Устанавливаем дополнения:
+	sudo apt-get install -y zsh tree redis-server nginx llvm xz-utils tk-dev gnumeric supervisor gunicorn3
+
+
+----------------------------------------------------------------------------------------------------------
+
+Устанавливаем oh-my-zsh. Это удобный вид ssh, в частности для 
+пользователей кроме root:
+	sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
+	
+Добавляем конфигурацию:
+	vim ~/.zshrc
+    		alias cls="clear"
+
+Его также можно установить как дефолтный shell:
+	chsh -s $(which zsh)
+
+----------------------------------------------------------------------------------------------------------
+
+Если что можно установить последнюю версию Python с zip файла:
+
+УСТАНАВЛИВАЕМ PYTHON И НАСТРАЕВАЕМ ЕГО:
+
+wget https://www.python.org/ftp/python/<vershion_number>/Python-<vershion_number>.tgz
+
+Например:
+	wget https://www.python.org/ftp/python/3.11.1/Python-3.11.1.tgz
+
+
+tar xvf Python-<vershion_number>.tgz
+cd Python-<vershion_number>
+mkdir ~/.python
+./configure --enable-optimizations --prefix=/home/<user_name>/.python
+make -j8
+sudo make altinstall
+
+Обновим pip:
+	sudo /home/www/.python/bin/python<vershion_number: x.y> -m pip install -U pip
+	
+Удалим Python-<vershion_number>.tgz и Python-<vershion_number> из ~/ :
+	sudo rm -rf Python-<vershion_number>.tgz Python-<vershion_number>
+
+
+Чтобы ОС где python находится зададим настройки:
+	vim ~/.zshrc
+		export PATH=$PATH:/home/<user_name>/.python/bin
+
+После перезапустим этот файл:
+	. ~/.zshrc
+
+Теперь если запустить Python<version_number: x.y>, то он должен запуститься.
+
+----------------------------------------------------------------------------------------------------------
+
+Настраеваем NGINX:
+
+Создаём новый файл для параметров:
+	sudo nano /etc/nginx/sites-enabled/journal_2
+
+Там записываем эти настройки:
+-----------------------------
+server {
+    server_name <domen>.com;
+
+    listen 80;
+
+    location / {
+        include proxy_params;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_connect_timeout 500;
+        proxy_send_timeout 500;
+        proxy_read_timeout 500;
+    }
+
+    location /static/ {
+        root /home/<user_name>/<project_url>;
+        try_files /home/<user_name>/<project_url>/app/admin/admin-static$uri /home/<user_name>/<project_url>/app/main/main-static$uri;        
+        add_header Pragma public;
+        add_header Cache-Control "public";
+    }
+
+    location /media/ {
+        root /home/<user_name>/<project_url>/app/main/main-static/;
+        add_header Pragma public;
+        add_header Cache-Control "public";
+    }
+
+    client_max_body_size 200M;
+}
+
+-----------------------------
+Отключаем default страницу NGINX:
+	sudo unlink /etc/nginx/sites-enabled/default
+
+Проверяем на ошибки настройки NGINX:
+	sudo nginx -t
+
+После перезагружаем NGINX:
+	sudo nginx -s reload
+
+Теперь если перейти по ip или domen должа выдоваться ошибка 502
+
+
+----------------------------------------------------------------------------------------------------------
+
+Настраеваем gunicorn3:
+
+
+gunicorn --workers=3 run:app --daemon         для включения
+sudo pkill -f gunicorn                        для отключения gunicorn
+
+
+
+----------------------------------------------------------------------------------------------------------
+
+Устанавливаем MySQL:
+	sudo apt-get install -y mysql-server
+
+
+Настраеваем MySQL
+-------------------
+Запускаем скрипт который отвечает за безопастность:
+	sudo mysql_secure_installation
+
+PyMySQL документация: 
+https://pymysql.readthedocs.io/en/lat...
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Предупреждение:
+	По состоянию на июль 2022 года при запуске mysql_secure_installation скрипта
+без какой-либо дополнительной настройки будет возникать ошибка.
+Причина в том, что этот скрипт попытается установить пароль для учетной записи root MySQL установки,
+но по умолчанию при установке Ubuntu эта учетная запись не настроена для подключения с использованием пароля.
+
+До июля 2022 года этот сценарий автоматически завершался сбоем после попытки установить пароль учетной
+записи root и продолжить работу с остальными запросами. Однако на момент написания этой статьи скрипт
+вернет следующую ошибку после ввода и подтверждения пароля:
+
+
+
+---------------------------------------
+
+Output
+ ... Failed! Error: SET PASSWORD has no significance for user 'root'@'localhost' as the authentication method
+used doesn't store authentication data in the MySQL server. Please consider using ALTER USER instead if you
+want to change authentication parameters.
+
+New password:
+
+--------------------------------------
+
+
+Это приведет скрипт к рекурсивному циклу, выйти из которого вы можете, только закрыв окно терминала.
+
+Поскольку mysql_secure_installationскрипт выполняет ряд других действий, полезных для обеспечения 
+безопасности вашей установки MySQL, все же рекомендуется запустить его перед началом 
+использования MySQL для управления вашими данными. Однако, чтобы избежать входа в этот рекурсивный цикл, 
+вам нужно сначала настроить способ аутентификации вашего корневого пользователя MySQL.
+
+Сначала откройте приглашение MySQL:
+	sudo mysql
+Затем выполните следующую ALTER USERкоманду, чтобы изменить метод аутентификации пользователя 
+root на тот, который использует пароль. В следующем примере метод аутентификации 
+изменяется наmysql_native_password:
+	ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password';
+
+После внесения этого изменения выйдите из командной строки MySQL:
+exit
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+
+Команды на сервере
+Очистить окно терминала: clear
+Перемещение по директориям: cd dirname
+Список файлов в директории: ls
+Создать директорию: mkdir dirname
+Установка sudo: apt install sudo
+Обновление пакетов: sudo apt update && sudo apt upgrade
+Устанавка MySQL server: sudo apt install mysql-server -y
+Базовая настройка защиты MySQL сервера: sudo mysql_secure_installation
+Файл конфига: sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf
+Запуск MySQL: sudo systemctl start mysql
+Автозагрузка: sudo systemctl enable mysql
+Перезапуск: sudo systemctl restart mysql
+
+Работа с MySQL
+Вход в MySQL: mysql -u root -p
+Создание базы данных: CREATE DATABASE db_name;
+Посмотреть список баз данных: SHOW DATABASES;
+Создание пользователя: CREATE USER 'username'@'ip_address' IDENTIFIED BY 'password';
+Дать пользователю все права: GRANT ALL PRIVILEGES ON db_name.* TO 'username'@'ip_address';
+Список пользователей: SELECT user, host FROM mysql.user;
+Выход из MySQL: exit
+
+Инструкции:
+	YoTube:  https://www.youtube.com/watch?v=OT7JGcUKWK0
+	https://www.digitalocean.com/community/tutorials/how-to-install-mysql-on-ubuntu-22-04
+
+----------------------------------------------------------------------------------------------------------
+
+
+SSL
+
+Заходим на сайт   https://letsencrypt.org
+
+Жмём:  Get Started
+И жмём: 
+	Certbot  (или же https://certbot.eff.org/)
+
+Выбираем NGINX из HTTPS серверов
+
+а дальше следуем инструкцие

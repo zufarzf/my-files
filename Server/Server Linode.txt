@@ -1,0 +1,29 @@
+Пароль domain: atananmaN1
+
+root: ssh root@192.46.224.99
+
+Пароль от сервера: linode@44AO
+
+URI posgr: 'postgresql+psycopg2://root:pass@localhost/my_db'
+
+Команды linux на сервере:
+	sudo supervisorctl update
+	sudo supervisorctl restart all
+	sudo systemctl restart nginx
+
+
+Программы для работы с сервером:
+	FileZilla Client
+	MobaXtream
+
+
+ещё один пользователь на сервере: zufar
+
+ХЗ: https://tonyj.me/blog/deploy-django-project-ubuntu-server/
+
+return 404; #managed by Certbot
+
+sudo nano /etc/nginx/sites-available/finfin
+sudo service nginx reload
+
+test_main@33ZF
